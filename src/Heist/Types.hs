@@ -5,7 +5,7 @@
 {-# LANGUAGE PackageImports #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UndecidableInstances #-}
-
+{-# LANGUAGE TypeFamilies #-}
 {-|
 
 This module contains the core Heist data types.  
@@ -25,6 +25,7 @@ import           Control.Monad.CatchIO
 import           Control.Monad.Cont
 import           Control.Monad.Error
 import           Control.Monad.Reader
+import           Control.Monad.Trans.Control
 import           Control.Monad.State.Strict
 import           Data.ByteString.Char8 (ByteString)
 import           Data.DList                      (DList)
@@ -80,8 +81,13 @@ newtype RuntimeSplice m a = RuntimeSplice {
                , Monad
                , MonadIO
                , MonadState HeterogeneousEnvironment
-               , MonadTrans )
+               , MonadTrans
+              )
 
+instance MonadTransControl RuntimeSplice where
+  newtype StT RuntimeSplice a = StTRT { unStTRT :: StT (StateT HeterogeneousEnvironment) a }
+  liftWith f = RuntimeSplice (liftWith (\runs -> f (liftM StTRT . runs . unRT)))
+  restoreT = RuntimeSplice . restoreT . liftM unStTRT
 
 ------------------------------------------------------------------------------
 instance (Monad m, Monoid a) => Monoid (RuntimeSplice m a) where
