@@ -43,6 +43,7 @@ module Heist.Compiled
   , putPromise
   , adjustPromise
   , codeGen
+  , consolidate
 
   -- * Running nodes and splices
   , runNodeList
