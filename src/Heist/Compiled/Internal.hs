@@ -123,7 +123,7 @@ promiseChildrenWithNodes :: (Monad n)
                          -> Promise a
                          -> HeistT n IO (RuntimeSplice n Builder)
 promiseChildrenWithNodes =
-    promiseChildrenWithTrans (X.renderHtmlFragment X.UTF8)
+    promiseChildrenWithTrans (X.renderXmlFragment X.UTF8)
 
 
 ------------------------------------------------------------------------------
@@ -317,7 +317,7 @@ runNode node = localParamNode (const node) $ do
     isStatic <- subtreeIsStatic node
     if isStatic
       then return $! yieldPure $!
-             X.renderHtmlFragment X.UTF8 [parseAttrs node]
+             X.renderXmlFragment X.UTF8 [parseAttrs node]
       else compileNode node
 
 
