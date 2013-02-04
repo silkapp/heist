@@ -96,18 +96,20 @@ data HeistConfig m = HeistConfig
     -- attributes.
     , hcTemplates          :: TemplateRepo
     -- ^ Templates returned from the 'loadTemplates' function.
+    , hcCompileTemplates :: [TPath]
+    -- ^ List of splices which will be compiled
     }
 
 
 instance Monoid (HeistConfig m) where
-    mempty = HeistConfig [] [] [] [] Map.empty
-    mappend (HeistConfig a b c d e) (HeistConfig a' b' c' d' e') =
+    mempty = HeistConfig [] [] [] [] Map.empty []
+    mappend (HeistConfig a b c d e f) (HeistConfig a' b' c' d' e' f') =
         HeistConfig (a `mappend` a')
                     (b `mappend` b')
                     (c `mappend` c')
                     (d `mappend` d')
                     (e `mappend` e')
-
+                    (f `mappend` f')
 
 ------------------------------------------------------------------------------
 -- | The built-in set of static splices.  All the splices that used to be
@@ -197,7 +199,7 @@ initHeist' :: Monad n
            => HE.KeyGen
            -> HeistConfig n
            -> EitherT [String] IO (HeistState n)
-initHeist' keyGen (HeistConfig i lt c a rawTemplates) = do
+initHeist' keyGen (HeistConfig i lt c a rawTemplates tmps) = do
     let empty = emptyHS keyGen
     tmap <- preproc keyGen lt rawTemplates
     let hs1 = empty { _spliceMap = Map.fromList i
@@ -205,7 +207,7 @@ initHeist' keyGen (HeistConfig i lt c a rawTemplates) = do
                     , _compiledSpliceMap = Map.fromList c
                     , _attrSpliceMap = Map.fromList a
                     }
-    lift $ C.compileTemplates hs1
+    lift $ C.compileTemplates tmps hs1
 
 
 ------------------------------------------------------------------------------
@@ -249,7 +251,7 @@ preprocess (tpath, docFile) = do
 initHeistWithCacheTag :: MonadIO n
                       => HeistConfig n
                       -> EitherT [String] IO (HeistState n, CacheTagState)
-initHeistWithCacheTag (HeistConfig i lt c a rawTemplates) = do
+initHeistWithCacheTag (HeistConfig i lt c a rawTemplates tmps) = do
     (ss, cts) <- liftIO mkCacheTag
     let tag = "cache"
     keyGen <- lift HE.newKeyGen
@@ -262,7 +264,7 @@ initHeistWithCacheTag (HeistConfig i lt c a rawTemplates) = do
 
     let hc' = HeistConfig ((tag, cacheImpl cts) : i) lt
                           ((tag, cacheImplCompiled cts) : c)
-                          a rawWithCache
+                          a rawWithCache tmps
     hs <- initHeist' keyGen hc'
     return (hs, cts)
 

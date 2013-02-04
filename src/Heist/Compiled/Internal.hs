@@ -123,7 +123,7 @@ promiseChildrenWithNodes :: (Monad n)
                          -> Promise a
                          -> HeistT n IO (RuntimeSplice n Builder)
 promiseChildrenWithNodes =
-    promiseChildrenWithTrans (X.renderXmlFragment X.UTF8)
+    promiseChildrenWithTrans (X.renderHtmlFragment X.UTF8)
 
 
 ------------------------------------------------------------------------------
@@ -228,9 +228,9 @@ compileTemplate hs tpath df = do
 
 
 ------------------------------------------------------------------------------
-compileTemplates :: Monad n => HeistState n -> IO (HeistState n)
-compileTemplates hs = do
-    ctm <- compileTemplates' hs
+compileTemplates :: Monad n => [TPath] -> HeistState n -> IO (HeistState n)
+compileTemplates tmps hs = do
+    ctm <- compileTemplates' tmps hs
     return $! hs { _compiledTemplateMap = ctm }
 --    let f = flip evalStateT HE.empty . unRT . codeGen
 --    return $! hs { _compiledTemplateMap = H.map (first f) ctm }
@@ -238,14 +238,15 @@ compileTemplates hs = do
 
 ------------------------------------------------------------------------------
 compileTemplates' :: Monad m
-                  => HeistState m
+                  => [TPath] -> HeistState m
                   -> IO (H.HashMap TPath ([Chunk m], MIMEType))
-compileTemplates' hs = do
+compileTemplates' tmps hs = do
     ctm <- foldM runOne H.empty tpathDocfiles
     return $! ctm
   where
     tpathDocfiles :: [(TPath, DocumentFile)]
-    tpathDocfiles = map (\(a,b) -> (a, b))
+    tpathDocfiles = filter (flip elem tmps . fst)
+                  $ map (\(a,b) -> (a, b))
                         (H.toList $ _templateMap hs)
 
     runOne tmap (tpath, df) = do
@@ -317,7 +318,7 @@ runNode node = localParamNode (const node) $ do
     isStatic <- subtreeIsStatic node
     if isStatic
       then return $! yieldPure $!
-             X.renderXmlFragment X.UTF8 [parseAttrs node]
+             X.renderHtmlFragment X.UTF8 [parseAttrs node]
       else compileNode node
 
 
@@ -416,13 +417,13 @@ compileNode (X.Element nm attrs ch) =
         compiledAttrs <- runAttributes attrs
 
         childHtml <- runNodeList ch
-
-        return $! if null (DL.toList childHtml)
+              -- This produces invalid HTML
+        return $! {- if null (DL.toList childHtml)
           then DL.concat [ DL.singleton $! pureTextChunk $! tag0
                          , DL.concat compiledAttrs
                          , DL.singleton $! pureTextChunk " />"
                          ]
-          else DL.concat [ DL.singleton $! pureTextChunk $! tag0
+          else -} DL.concat [ DL.singleton $! pureTextChunk $! tag0
                          , DL.concat compiledAttrs
                          , DL.singleton $! pureTextChunk ">"
                          , childHtml
