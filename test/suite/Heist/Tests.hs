@@ -58,7 +58,7 @@ loadErrorsTest = do
 
 attrSpliceTest :: IO ()
 attrSpliceTest = do
-    ehs <- loadT "templates" [] [] [] [("autocheck", autocheckedSplice)]
+    ehs <- loadT "templates" [] [] [] [("autocheck", lift . autocheckedSplice)]
     let hs = either (error . show) id ehs
         runtime = fromJust $ C.renderTemplate hs "attr_splice"
 
@@ -191,6 +191,6 @@ backslashHandlingTest = do
     iOut <- iRender hs "backslash"
     H.assertEqual "interpreted failure" iExpected iOut
   where
-    cExpected = "<foo regex='d+\\d'></foo>&#10;"
-    iExpected = "<foo regex='d+\\d'></foo>\n"
+    cExpected = "<foo regex='abc\\d+\\\\e'></foo>&#10;"
+    iExpected = "<foo regex='abc\\d+\\\\e'></foo>\n"
 

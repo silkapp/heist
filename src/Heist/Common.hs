@@ -81,17 +81,11 @@ attParser = liftM ($! []) (loop id)
         go !subDL = (gobbleText >>= go . append subDL)
                     <|> (AP.endOfInput *> finish subDL)
                     <|> (do
-                            res <- escSequence
-                            dl' <- finish subDL
-                            loop $! append dl' res)
-                    <|> (do
                             idp <- identParser
                             dl' <- finish subDL
                             loop $! append dl' idp)
 
-    gobbleText = AP.takeWhile1 (AP.notInClass "\\$")
-
-    escSequence = AP.char '\\' *> (Escaped <$> AP.anyChar)
+    gobbleText = AP.takeWhile1 (AP.notInClass "$")
 
     identParser = AP.char '$' *> (ident <|> return (Literal "$"))
     ident = (AP.char '{' *> (Ident <$> AP.takeWhile (/='}')) <* AP.string "}")
@@ -284,5 +278,14 @@ mimeType d = case d of
     -- rendering will include a byte order mark. (RFC 2781, Sec. 3.3)
     enc X.UTF16BE = "utf-16"
     enc X.UTF16LE = "utf-16"
+
+
+------------------------------------------------------------------------------
+-- | Binds a set of new splice declarations within a 'HeistState'.
+bindAttributeSplices :: [(T.Text, AttrSplice n)] -- ^ splices to bind
+                     -> HeistState n             -- ^ start state
+                     -> HeistState n
+bindAttributeSplices ss hs =
+    hs { _attrSpliceMap = Map.union (Map.fromList ss) (_attrSpliceMap hs) }
 
 

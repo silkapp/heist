@@ -10,11 +10,12 @@ module Heist.Interpreted.Internal where
 import           Blaze.ByteString.Builder
 import           Control.Arrow hiding (loop)
 import           Control.Monad
-import           Control.Monad.Trans
+import           Control.Monad.State.Strict
 import qualified Data.Attoparsec.Text as AP
 import           Data.ByteString (ByteString)
 import           Data.List
 import qualified Data.HashMap.Strict as Map
+import qualified Data.HeterogeneousEnvironment   as HE
 import           Data.Maybe
 import           Data.Monoid
 import qualified Data.Text as T
@@ -62,17 +63,8 @@ bindSplices ss hs = foldl' (flip id) hs acts
 
 
 ------------------------------------------------------------------------------
--- | Binds a set of new splice declarations within a 'HeistState'.
-bindAttributeSplices :: [(Text, AttrSplice n)] -- ^ splices to bind
-                     -> HeistState n           -- ^ start state
-                     -> HeistState n
-bindAttributeSplices ss hs =
-    hs { _attrSpliceMap = Map.union (Map.fromList ss) (_attrSpliceMap hs) }
-
-
-------------------------------------------------------------------------------
 -- | Converts 'Text' to a splice returning a single 'TextNode'.
-textSplice :: Monad n => Text -> Splice n
+textSplice :: Monad m => Text -> HeistT n m Template
 textSplice t = return [X.TextNode t]
 
 
@@ -211,7 +203,8 @@ runAttributes attrs = (return . concat) =<< mapM runAttrSplice attrs
 runAttrSplice :: (Monad n) => (Text, Text) -> HeistT n n [(Text, Text)]
 runAttrSplice a@(k,v) = do
     splice <- getsHS (Map.lookup k . _attrSpliceMap)
-    maybe (liftM (:[]) $ attSubst a) (lift . ($v)) splice
+    maybe (liftM (:[]) $ attSubst a)
+          (lift . flip evalStateT HE.empty . unRT . ($v)) splice
 
 
 ------------------------------------------------------------------------------
@@ -236,18 +229,8 @@ parseAtt bs = do
     return $ T.concat chunks
   where
     cvt (Literal x) = return x
-    cvt (Escaped c) = renderEscaped c
     cvt (Ident x)   =
         localParamNode (const $ X.Element x [] []) $ getAttributeSplice x
-
-    renderEscaped c = do
-        hs <- getHS
-        if _preprocessingMode hs
-          -- Load time splices can't be descructive, therefore we need to
-          -- output the slashes so we don't change anything before later
-          -- splice processing.
-          then return $ T.snoc "\\" c
-          else return $ T.singleton c
 
 
 ------------------------------------------------------------------------------
@@ -275,10 +258,8 @@ parseAtt bs = do
 getAttributeSplice :: Monad n => Text -> HeistT n n Text
 getAttributeSplice name = do
     hs <- getHS
-    let noSplice = if _preprocessingMode hs
-                     then return $ T.concat ["${", name, "}"]
-                     else return ""
-    let s = lookupSplice name hs
+    let noSplice = return $ T.concat ["${", name, "}"]
+        s = lookupSplice name hs
     maybe noSplice (liftM (T.concat . map X.nodeText)) s
 
 ------------------------------------------------------------------------------
