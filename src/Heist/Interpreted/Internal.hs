@@ -153,7 +153,7 @@ addXMLTemplate :: ByteString
 addXMLTemplate n t mfp st =
     insertTemplate (splitTemplatePath n) doc st
   where
-    doc = DocumentFile (X.HtmlDocument X.UTF8 Nothing t) mfp
+    doc = DocumentFile (X.XmlDocument X.UTF8 Nothing t) mfp
 
 
 ------------------------------------------------------------------------------

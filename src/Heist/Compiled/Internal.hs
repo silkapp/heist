@@ -241,9 +241,9 @@ compileTemplate hs tpath df = do
 
 
 ------------------------------------------------------------------------------
-compileTemplates :: Monad n => [TPath] -> HeistState n -> IO (HeistState n)
-compileTemplates tmps hs = do
-    ctm <- compileTemplates' tmps hs
+compileTemplates :: Monad n => HeistState n -> IO (HeistState n)
+compileTemplates hs = do
+    ctm <- compileTemplates' hs
     return $! hs { _compiledTemplateMap = ctm }
 --    let f = flip evalStateT HE.empty . unRT . codeGen
 --    return $! hs { _compiledTemplateMap = H.map (first f) ctm }
@@ -251,15 +251,14 @@ compileTemplates tmps hs = do
 
 ------------------------------------------------------------------------------
 compileTemplates' :: Monad m
-                  => [TPath] -> HeistState m
+                  => HeistState m
                   -> IO (H.HashMap TPath ([Chunk m], MIMEType))
-compileTemplates' tmps hs = do
+compileTemplates' hs = do
     ctm <- foldM runOne H.empty tpathDocfiles
     return $! ctm
   where
     tpathDocfiles :: [(TPath, DocumentFile)]
-    tpathDocfiles = filter (flip elem tmps . fst)
-                  $ map (\(a,b) -> (a, b))
+    tpathDocfiles = map (\(a,b) -> (a, b))
                         (H.toList $ _templateMap hs)
 
     runOne tmap (tpath, df) = do
@@ -429,13 +428,13 @@ compileNode (X.Element nm attrs ch) =
         compiledAttrs <- runAttributes attrs
 
         childHtml <- runNodeList ch
-              -- This produces invalid HTML
-        return $! {- if null (DL.toList childHtml)
+
+        return $! if null (DL.toList childHtml)
           then DL.concat [ DL.singleton $! pureTextChunk $! tag0
                          , DL.concat compiledAttrs
                          , DL.singleton $! pureTextChunk " />"
                          ]
-          else -} DL.concat [ DL.singleton $! pureTextChunk $! tag0
+          else DL.concat [ DL.singleton $! pureTextChunk $! tag0
                          , DL.concat compiledAttrs
                          , DL.singleton $! pureTextChunk ">"
                          , childHtml
