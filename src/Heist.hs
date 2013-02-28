@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns      #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections     #-}
 
 {-|
 
@@ -19,6 +20,7 @@ module Heist
     loadTemplates
   , addTemplatePathPrefix
   , initHeist
+  , initHeistLazy
   , initHeistWithCacheTag
   , defaultInterpretedSplices
   , defaultLoadTimeSplices
@@ -64,10 +66,12 @@ import qualified Data.ByteString as B
 import qualified Data.Foldable as F
 import qualified Data.HeterogeneousEnvironment   as HE
 import           Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Lazy   as LazyMap
 import qualified Data.HashMap.Strict as Map
 import           Data.Monoid
 import           Data.Text                       (Text)
 import           System.Directory.Tree
+import           System.IO.Unsafe                (unsafeInterleaveIO)
 import qualified Text.XmlHtml                    as X
 
 import           Heist.Common
@@ -208,6 +212,28 @@ initHeist' keyGen (HeistConfig i lt c a rawTemplates) = do
                     }
     lift $ C.compileTemplates hs1
 
+initHeistLazy :: Monad n
+          => HeistConfig n
+          -> EitherT [String] IO (HeistState n)
+initHeistLazy hc = do
+    keyGen <- lift HE.newKeyGen
+    initHeistLazy' keyGen hc
+
+
+initHeistLazy' :: Monad n
+           => HE.KeyGen
+           -> HeistConfig n
+           -> EitherT [String] IO (HeistState n)
+initHeistLazy' keyGen (HeistConfig i lt c a rawTemplates) = do
+    let empty = emptyHS keyGen
+    tmap <- preprocLazy keyGen lt rawTemplates
+    let hs1 = empty { _spliceMap = Map.fromList i
+                    , _templateMap = tmap
+                    , _compiledSpliceMap = LazyMap.fromList c
+                    , _attrSpliceMap = Map.fromList a
+                    }
+    lift $ C.compileTemplatesLazy hs1
+
 
 ------------------------------------------------------------------------------
 -- | Runs preprocess on a TemplateRepo and returns the modified templates.
@@ -220,22 +246,36 @@ preproc keyGen splices templates = do
                               , _templateMap = templates
                               , _preprocessingMode = True }
     let eval a = evalHeistT a (X.TextNode "") hs
-    tPairs <- lift $ mapM (eval . preprocess) $ Map.toList templates
+    ts <- lift $ mapM (eval . preprocess) $ Map.toList templates
+    let tPairs = zipWith (fmap . (,)) (Map.keys templates) ts
     let bad = lefts tPairs
     if not (null bad)
       then left bad
       else right $ Map.fromList $ rights tPairs
 
+preprocLazy :: HE.KeyGen
+            -> [(Text, I.Splice IO)]
+            -> TemplateRepo
+            -> EitherT [String] IO TemplateRepo
+preprocLazy keyGen splices templates = do
+    let hs = (emptyHS keyGen) { _spliceMap = Map.fromList splices
+                              , _templateMap = templates
+                              , _preprocessingMode = True }
+    let eval a = evalHeistT a (X.TextNode "") hs
+    ts <- lift $ mapM (unsafeInterleaveIO . eval . preprocess) $ Map.toList templates
+    let tPairs = zipWith (\k v -> (k, either error id v)) (Map.keys templates) ts
+    right $ LazyMap.fromList tPairs
+
 
 ------------------------------------------------------------------------------
 -- | Processes a single template, running load time splices.
 preprocess :: (TPath, DocumentFile)
-           -> HeistT IO IO (Either String (TPath, DocumentFile))
+           -> HeistT IO IO (Either String DocumentFile)
 preprocess (tpath, docFile) = do
     let tname = tpathName tpath
     !emdoc <- try $ I.evalWithDoctypes tname
               :: HeistT IO IO (Either SomeException (Maybe X.Document))
-    let f !doc = (tpath, docFile { dfDoc = doc })
+    let f !doc = docFile { dfDoc = doc }
     return $! either (Left . show) (Right . maybe die f) emdoc
   where
     die = error "Preprocess didn't succeed!  This should never happen."

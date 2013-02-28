@@ -20,6 +20,7 @@ import qualified Data.Attoparsec.Text            as AP
 import           Data.ByteString (ByteString)
 import           Data.DList                      (DList)
 import qualified Data.DList                      as DL
+import qualified Data.HashMap.Lazy               as LH
 import qualified Data.HashMap.Strict             as H
 import qualified Data.HashSet                    as S
 import qualified Data.HeterogeneousEnvironment   as HE
@@ -29,6 +30,7 @@ import qualified Data.Text                       as T
 import qualified Data.Text.Encoding              as T
 import qualified Data.Vector                     as V
 import           Prelude                         hiding (catch)
+import           System.IO.Unsafe                (unsafeInterleaveIO)
 import qualified Text.XmlHtml                    as X
 import qualified Text.XmlHtml.HTML.Meta          as X
 ------------------------------------------------------------------------------
@@ -250,6 +252,11 @@ compileTemplates hs = do
 --    let f = flip evalStateT HE.empty . unRT . codeGen
 --    return $! hs { _compiledTemplateMap = H.map (first f) ctm }
 
+compileTemplatesLazy :: Monad n => HeistState n -> IO (HeistState n)
+compileTemplatesLazy hs = do
+    ctm <- compileTemplatesLazy' hs
+    return $! hs { _compiledTemplateMap = ctm }
+
 
 ------------------------------------------------------------------------------
 compileTemplates' :: Monad m
@@ -266,6 +273,21 @@ compileTemplates' hs = do
     runOne tmap (tpath, df) = do
         !mHtml <- compileTemplate hs tpath df
         return $! H.insert tpath (mHtml, mimeType $! dfDoc df) tmap
+
+compileTemplatesLazy' :: Monad m
+                      => HeistState m
+                      -> IO (H.HashMap TPath ([Chunk m], MIMEType))
+compileTemplatesLazy' hs = do
+    ctm <- foldM runOne H.empty tpathDocfiles
+    return $! ctm
+  where
+    tpathDocfiles :: [(TPath, DocumentFile)]
+    tpathDocfiles = map (\(a,b) -> (a, b))
+                        (H.toList $ _templateMap hs)
+
+    runOne tmap (tpath, df) = do
+        mHtml <- unsafeInterleaveIO $ compileTemplate hs tpath df
+        return $! LH.insert tpath (mHtml, mimeType $! dfDoc df) tmap
 
 
 ------------------------------------------------------------------------------
