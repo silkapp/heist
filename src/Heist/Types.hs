@@ -21,6 +21,7 @@ module Heist.Types where
 import           Blaze.ByteString.Builder
 import           Control.Applicative
 import           Control.Arrow
+import           Control.Monad.Base
 import           Control.Monad.CatchIO
 import           Control.Monad.Cont
 import           Control.Monad.Error
@@ -88,6 +89,14 @@ instance MonadTransControl RuntimeSplice where
   newtype StT RuntimeSplice a = StTRT { unStTRT :: StT (StateT HeterogeneousEnvironment) a }
   liftWith f = RuntimeSplice (liftWith (\runs -> f (liftM StTRT . runs . unRT)))
   restoreT = RuntimeSplice . restoreT . liftM unStTRT
+
+instance MonadBase IO m => MonadBase IO (RuntimeSplice m) where
+  liftBase = lift . liftBase
+
+instance MonadBaseControl IO m => MonadBaseControl IO (RuntimeSplice m) where
+  newtype StM (RuntimeSplice m) a = StMT { unStMT :: ComposeSt RuntimeSplice m a }
+  liftBaseWith = defaultLiftBaseWith StMT
+  restoreM     = defaultRestoreM   unStMT
 
 ------------------------------------------------------------------------------
 instance (Monad m, Monoid a) => Monoid (RuntimeSplice m a) where
