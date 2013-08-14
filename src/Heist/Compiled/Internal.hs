@@ -14,6 +14,7 @@ module Heist.Compiled.Internal where
 import           Blaze.ByteString.Builder
 import           Blaze.ByteString.Builder.Char8
 import           Control.Arrow
+import           Control.Concurrent.Async.Lifted (mapConcurrently)
 import           Control.Monad
 import           Control.Monad.RWS.Strict
 import           Control.Monad.State.Strict
@@ -332,8 +333,9 @@ consolidate = consolidateL . DL.toList
 -- | Given a list of output chunks, consolidate turns consecutive runs of
 -- @Pure Html@ values into maximally-efficient pre-rendered strict
 -- 'ByteString' chunks.
-codeGen :: Monad m => DList (Chunk m) -> RuntimeSplice m Builder
-codeGen l = V.foldr mappend mempty $!
+codeGen :: (Monad m, MonadBaseControl IO m) => DList (Chunk m) -> RuntimeSplice m Builder
+codeGen l = liftM (V.foldr mappend mempty) $!
+            mapConcurrently id $!
             V.map toAct $! V.fromList $! consolidate l
   where
     toAct !(RuntimeHtml !m)   = m
