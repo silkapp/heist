@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-|
 
 This module defines a TemplateDirectory data structure for convenient
@@ -20,6 +21,7 @@ import           Control.Concurrent
 import           Control.Error
 import           Control.Monad
 import           Control.Monad.Trans
+import           Control.Monad.Trans.Control
 import           Heist
 import           Heist.Splices.Cache
 
@@ -37,7 +39,7 @@ data TemplateDirectory n
 ------------------------------------------------------------------------------
 -- | Creates and returns a new 'TemplateDirectory' wrapped in an Either for
 -- error handling.
-newTemplateDirectory :: MonadIO n
+newTemplateDirectory :: (MonadIO n, MonadBaseControl IO n)
                      => FilePath
                      -> HeistConfig n
                      -> EitherT [String] IO (TemplateDirectory n)
@@ -53,7 +55,7 @@ newTemplateDirectory dir hc = do
 ------------------------------------------------------------------------------
 -- | Creates and returns a new 'TemplateDirectory', using the monad's fail
 -- function on error.
-newTemplateDirectory' :: MonadIO n
+newTemplateDirectory' :: (MonadIO n, MonadBaseControl IO n)
                       => FilePath
                       -> HeistConfig n
                       -> IO (TemplateDirectory n)
@@ -79,7 +81,7 @@ getDirectoryCTS (TemplateDirectory _ _ _ ctsMVar) = readMVar ctsMVar
 
 ------------------------------------------------------------------------------
 -- | Clears cached content and reloads templates from disk.
-reloadTemplateDirectory :: (MonadIO n)
+reloadTemplateDirectory :: (MonadIO n, MonadBaseControl IO n)
                         => TemplateDirectory n
                         -> IO (Either String ())
 reloadTemplateDirectory (TemplateDirectory p hc tsMVar ctsMVar) = do

@@ -1,6 +1,7 @@
 {-# LANGUAGE BangPatterns      #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE FlexibleContexts  #-}
 
 {-|
 
@@ -61,6 +62,7 @@ import           Control.Error
 import           Control.Exception (SomeException)
 import           Control.Monad.CatchIO
 import           Control.Monad.Trans
+import           Control.Monad.Trans.Control
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as B
 import qualified Data.Foldable as F
@@ -287,7 +289,7 @@ preprocess (tpath, docFile) = do
 -- do configure the cache tag differently than how this function does it, you
 -- will still probably want to pattern your approach after this function's
 -- implementation.
-initHeistWithCacheTag :: MonadIO n
+initHeistWithCacheTag :: (MonadIO n, MonadBaseControl IO n)
                       => HeistConfig n
                       -> EitherT [String] IO (HeistState n, CacheTagState)
 initHeistWithCacheTag (HeistConfig i lt c a rawTemplates) = do

@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Heist.Splices
   ( ifISplice
   , ifCSplice
@@ -9,6 +10,7 @@ module Heist.Splices
   , module Heist.Splices.Markdown
   ) where
 
+import           Control.Monad.Trans.Control
 import           Data.Monoid
 import qualified Heist.Compiled as C
 import qualified Heist.Interpreted as I
@@ -32,7 +34,7 @@ ifISplice cond =
 ------------------------------------------------------------------------------
 -- | Function for constructing if splices that use a runtime predicate
 -- function to determine whether the node's children should be rendered.
-ifCSplice :: Monad m
+ifCSplice :: (Monad m, MonadBaseControl IO m)
           => (t -> Bool)
           -> C.Promise t
           -> C.Splice m
