@@ -1,14 +1,17 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PackageImports #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-|
 
-This module contains the core Heist data types.  
+This module contains the core Heist data types.
 
 Edward Kmett wrote most of the HeistT monad code and associated instances,
 liberating us from the unused writer portion of RWST.
@@ -179,10 +182,12 @@ data HeistState m = HeistState {
 -- to combine two compiledTemplateMaps.  All compiled templates must be known
 -- at load time and processed in a single call to initHeist/loadTemplates or
 -- whatever we end up calling it..
-
+#if MIN_VERSION_base(4,7,0)
+deriving instance Typeable HeistState
+#else
 instance (Typeable1 m) => Typeable (HeistState m) where
     typeOf _ = mkTyConApp templateStateTyCon [typeOf1 (undefined :: m ())]
-
+#endif
 
 ------------------------------------------------------------------------------
 -- | HeistT is the monad transformer used for splice processing.  HeistT
@@ -232,9 +237,11 @@ compiledSpliceNames ts = H.keys $ _compiledSpliceMap ts
 ------------------------------------------------------------------------------
 -- | The Typeable instance is here so Heist can be dynamically executed with
 -- Hint.
+#if !MIN_VERSION_base(4,7,0)
 templateStateTyCon :: TyCon
 templateStateTyCon = mkTyCon "Heist.HeistState"
 {-# NOINLINE templateStateTyCon #-}
+#end
 
 ------------------------------------------------------------------------------
 -- | Evaluates a template monad as a computation in the underlying monad.
@@ -380,13 +387,18 @@ instance (MonadCont m) => MonadCont (HeistT n m) where
 ------------------------------------------------------------------------------
 -- | The Typeable instance is here so Heist can be dynamically executed with
 -- Hint.
+#if !MIN_VERSION_base(4,7,0)
 templateMonadTyCon :: TyCon
 templateMonadTyCon = mkTyCon "Heist.HeistT"
 {-# NOINLINE templateMonadTyCon #-}
+#endif
 
+#if MIN_VERISON_base(4,7,0)
+deriving instance Typeable HeistT
+#else
 instance (Typeable1 m) => Typeable1 (HeistT n m) where
     typeOf1 _ = mkTyConApp templateMonadTyCon [typeOf1 (undefined :: m ())]
-
+#endif
 
 ------------------------------------------------------------------------------
 -- Functions for our monad.
@@ -496,5 +508,4 @@ data AttAST = Literal Text
 isIdent :: AttAST -> Bool
 isIdent (Ident _) = True
 isIdent _         = False
-
 
