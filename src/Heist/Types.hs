@@ -241,7 +241,7 @@ compiledSpliceNames ts = H.keys $ _compiledSpliceMap ts
 templateStateTyCon :: TyCon
 templateStateTyCon = mkTyCon "Heist.HeistState"
 {-# NOINLINE templateStateTyCon #-}
-#end
+#endif
 
 ------------------------------------------------------------------------------
 -- | Evaluates a template monad as a computation in the underlying monad.
@@ -393,7 +393,7 @@ templateMonadTyCon = mkTyCon "Heist.HeistT"
 {-# NOINLINE templateMonadTyCon #-}
 #endif
 
-#if MIN_VERISON_base(4,7,0)
+#if MIN_VERSION_base(4,7,0)
 deriving instance Typeable HeistT
 #else
 instance (Typeable1 m) => Typeable1 (HeistT n m) where
