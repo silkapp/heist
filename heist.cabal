@@ -154,7 +154,7 @@ Library
     monad-control              == 0.3.*,
     process                    >= 1.1     && < 1.3,
     random                     >= 1.0.1.0 && < 1.1,
-    text                       >= 0.10    && < 1.2,
+    text                       >= 0.10    && < 1.3,
     time                       >= 1.1     && < 1.5,
     unordered-containers       >= 0.1.4   && < 0.3,
     vector                     >= 0.9     && < 0.11,
