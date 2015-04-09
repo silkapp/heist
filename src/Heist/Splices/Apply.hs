@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Heist.Splices.Apply where
 
 ------------------------------------------------------------------------------
@@ -29,7 +30,7 @@ applyAttr = "template"
 
 
 ------------------------------------------------------------------------------
--- | 
+-- |
 rawApply :: (Monad n)
          => Text
          -> [X.Node]

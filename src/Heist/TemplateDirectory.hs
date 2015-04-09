@@ -4,7 +4,7 @@ This module defines a TemplateDirectory data structure for convenient
 interaction with templates within web apps.
 
 -}
-
+{-# LANGUAGE FlexibleContexts #-}
 module Heist.TemplateDirectory
     ( TemplateDirectory
     , newTemplateDirectory
