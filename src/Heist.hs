@@ -57,7 +57,8 @@ module Heist
   , orError
   ) where
 
-import           Control.Error
+import           Data.Either
+import           Control.Monad.Trans.Either
 import           Control.Exception (SomeException)
 import           Control.Monad.CatchIO
 import           Control.Monad.Trans
